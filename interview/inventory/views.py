@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.views import APIView
@@ -63,7 +65,23 @@ class InventoryRetrieveUpdateDestroyView(APIView):
     
     def get_queryset(self, **kwargs):
         return self.queryset.get(**kwargs)
+    
 
+class InventoryUnreleasedView(APIView):
+    queryset = Inventory.objects.all()
+    serializer_class = InventorySerializer
+
+    def get(self, request):
+        try:
+            start_date = datetime.strptime(request.GET.get("start_date"), "%Y-%m-%d")
+            embargo_date = datetime.strptime(request.GET.get("embargo_date"), "%Y-%m-%d")
+            #  assumption - start date must be before embargo date; ask product owner
+            assert start_date <= embargo_date
+        except (ValueError, AssertionError):
+            return Response({"error": "start_date and embargo_date must be present, well-formed, and temporally logical"}, status=400)
+        queryset = self.queryset.filter(start_date__gte=start_date, embargo_date__lte=embargo_date)
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data, status=200)
 
 class InventoryTagListCreateView(APIView):
     queryset = InventoryTag.objects.all()
