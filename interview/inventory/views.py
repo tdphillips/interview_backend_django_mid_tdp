@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.views import APIView
@@ -27,7 +29,16 @@ class InventoryListCreateView(APIView):
         return Response(serializer.data, status=201)
     
     def get(self, request: Request, *args, **kwargs) -> Response:
-        serializer = self.serializer_class(self.get_queryset(), many=True)
+        queryset = self.get_queryset()
+        created_after = request.GET.get("created_after")
+        if created_after:
+            try:
+                created_after = datetime.strptime(created_after, "%Y-%m-%d").date() + timedelta(days=1)
+            except ValueError:
+                return Response({'error': "Provided date does not match format '%Y-%m-%d'"}, status=400)
+            queryset = queryset.filter(created_at__gte=created_after)
+
+        serializer = self.serializer_class(queryset, many=True)
         
         return Response(serializer.data, status=200)
     
